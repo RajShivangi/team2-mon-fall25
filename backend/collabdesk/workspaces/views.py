@@ -55,7 +55,7 @@ class WorkspaceListView(APIView):
         ).values_list("workspace_id", flat=True)
 
         workspaces = Workspace.objects.filter(workspace_id__in=workspace_ids).values(
-            "workspace_id", "name"
+            "workspace_id", "name", "created_by_id"
         )
 
         return Response(list(workspaces))
@@ -70,3 +70,29 @@ class WorkspaceCreateView(generics.CreateAPIView):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
+
+class WorkspaceDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, workspace_id):
+        user = request.user
+        try:
+            workspace = Workspace.objects.get(workspace_id=workspace_id)
+        except Workspace.DoesNotExist:
+            return Response({"error": "Workspace not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Ensure only creator can delete
+        if workspace.created_by != user:
+            return Response(
+                {"error": "You are not authorized to delete this workspace"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Delete all related WorkspaceMember records
+        # WorkspaceMember.objects.filter(workspace=workspace).delete()
+
+        # Delete the workspace itself
+        workspace.delete()
+
+        return Response({"message": "Workspace deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
-import { fetchCurrentUser } from "../../lib/api";
+import { fetchCurrentUser, fetchWorkspaceList, deleteWorkspace } from "../../lib/api";
+import type {WorkspaceListItem} from "../../lib/api";
+import { Trash2 } from "lucide-react";
 
 export function Settings({
   workspaceId,
@@ -15,6 +17,8 @@ export function Settings({
   const [notifications, setNotifications] = useState(true);
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [workspaces, setWorkspaces] = useState<WorkspaceListItem[]>([]);;
+  const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
 
   // Fetch current user data from backend
   useEffect(() => {
@@ -37,6 +41,24 @@ export function Settings({
     loadUserData();
   }, [isAuthenticated]);
 
+
+    useEffect(() => {
+    const loadWorkspaces = async () => {
+      try {
+        const user = await fetchCurrentUser();
+        setCurrentUserId(user.id);
+
+        const ws = await fetchWorkspaceList();
+        setWorkspaces(ws);
+      } catch (err) {
+        console.error("Error fetching workspaces:", err);
+      }
+    };
+
+    loadWorkspaces();
+  }, []);
+
+
   const handleLeaveWorkspace = () => {
     if (
       window.confirm(
@@ -46,6 +68,15 @@ export function Settings({
       onLeaveWorkspace(workspaceId);
     }
   };
+
+  const handleDelete = async (workspaceId: string) => {
+  try {
+    await deleteWorkspace(workspaceId);
+    setWorkspaces((prev) => prev.filter((w) => w.workspace_id !== workspaceId));
+  } catch (err) {
+    console.error("Delete failed:", err);
+  }
+};
 
   if (loading) {
     return (
@@ -96,6 +127,47 @@ export function Settings({
           ></span>
         </button>
       </div>
+      
+
+
+{/* Fetch Workspaces with Delete Button */}
+<div className="mt-6 border-t border-gray-300 dark:border-neutral-700 pt-4">
+  <h3 className="text-gray-900 dark:text-white text-lg mb-3">Workspaces</h3>
+
+  {workspaces.length === 0 ? (
+    <p className="text-gray-600 dark:text-gray-400 text-sm">
+      No workspaces joined yet.
+    </p>
+  ) : (
+    <ul className="space-y-2">
+      {workspaces.map((workspace) => (
+        <li
+          key={workspace.workspace_id}
+          className="flex justify-between items-center 
+                     bg-gray-100 dark:bg-neutral-900 
+                     text-gray-900 dark:text-gray-100 
+                     p-3 rounded-xl shadow-sm transition-colors"
+        >
+          <span>{workspace.name}</span>
+
+          <button
+            disabled={workspace.created_by_id !== currentUserId}
+            onClick={() => handleDelete(workspace.workspace_id)}
+            className={`p-2 rounded-full transition-colors ${
+              workspace.created_by_id === currentUserId
+                ? "text-red-600 hover:bg-red-100 hover:dark:bg-red-700 dark:text-red-500"
+                : "opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-500"
+            }`}
+          >
+            <Trash2 size={18} />
+          </button>
+        </li>
+      ))}
+    </ul>
+  )}
+</div>
+
+
 
       {/* Leave Workspace */}
       <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-3">

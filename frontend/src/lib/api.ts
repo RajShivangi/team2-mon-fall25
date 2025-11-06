@@ -1,6 +1,6 @@
 // API utility for backend communication
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-// const API_BASE_URL = 'http://localhost:8000';
+// const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:8000';
 
 export type BackendEvent = {
   event_id: string;
@@ -40,6 +40,7 @@ export type Workspace = {
 export type WorkspaceListItem = {
   workspace_id: string;
   name: string;
+  created_by_id?: number;
 };
 
 // Helper to make authenticated requests
@@ -195,3 +196,18 @@ export async function createWorkspace(
   console.log("Workspace created successfully:", data);
   return data;
 }
+
+export async function deleteWorkspace(workspaceId: string): Promise<void> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/workspaces/${workspaceId}/`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Failed to delete workspace:", errorText);
+    throw new Error("Failed to delete workspace");
+  }
+
+  console.log(`✅ Workspace ${workspaceId} deleted successfully`);
+}
+
